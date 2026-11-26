@@ -1,10 +1,5 @@
+import { InboxView } from "@/components/inbox-view";
+
 export default function Home() {
-  return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="text-2xl font-semibold">OpsPilot</h1>
-      <p className="mt-2 text-sm text-neutral-500">
-        Agentic triage copilot for open-source issue trackers.
-      </p>
-    </main>
-  );
+  return <InboxView />;
 }

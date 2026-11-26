@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.routes_evals import router as evals_router
 from api.routes_runs import router as runs_router
 from api.routes_search import router as search_router
+from api.routes_ui import router as ui_router
 from common.config import get_settings
 
 
@@ -36,6 +37,7 @@ def create_app() -> FastAPI:
     app.include_router(search_router)
     app.include_router(runs_router)
     app.include_router(evals_router)
+    app.include_router(ui_router)
     return app
 
 
