@@ -1,0 +1,6 @@
+apiVersion: v2
+name: opspilot-infra
+description: Single-node Postgres, Qdrant, Redpanda, Temporal and Phoenix for OpsPilot on k3d.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

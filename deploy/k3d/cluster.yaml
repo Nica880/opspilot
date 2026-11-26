@@ -1,0 +1,24 @@
+# k3d on Colima. `make k8s-up` creates this cluster, imports the locally built images,
+# installs Argo CD and applies the app-of-apps.
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: opspilot
+servers: 1
+agents: 0
+image: rancher/k3s:v1.35.10-k3s1
+ports:
+  # NodePorts -> the same host ports as docker compose, so the same web image works.
+  - port: 3000:30300
+    nodeFilters: [server:0]
+  - port: 8000:30800
+    nodeFilters: [server:0]
+  - port: 6006:30606
+    nodeFilters: [server:0]
+  - port: 8233:30233
+    nodeFilters: [server:0]
+options:
+  k3s:
+    extraArgs:
+      - arg: --disable=traefik
+        nodeFilters: [server:*]

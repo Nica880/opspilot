@@ -1,0 +1,24 @@
+# Same pinned, arm64-verified images as docker-compose.yml (ADR-002).
+postgres:
+  image: postgres:16.16-alpine
+  user: opspilot
+  password: opspilot
+  database: opspilot
+  storage: 10Gi
+qdrant:
+  image: qdrant/qdrant:v1.20.2
+  storage: 10Gi
+redpanda:
+  image: redpandadata/redpanda:v26.2.7
+  memory: 1G
+  storage: 5Gi
+  topics: [issues.v1, docs.v1]
+  partitions: 6
+temporal:
+  image: temporalio/auto-setup:1.29.7
+  uiImage: temporalio/ui:2.58.1
+phoenix:
+  image: arizephoenix/phoenix:version-22.1.0
+nodePorts:
+  temporalUi: 30233
+  phoenix: 30606

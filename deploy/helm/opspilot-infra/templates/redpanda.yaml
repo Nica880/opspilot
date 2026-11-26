@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: opspilot-redpanda
+  labels: {{- include "infra.labels" . | nindent 4 }}
+spec:
+  selector: { app: opspilot-redpanda }
+  ports:
+    - { name: kafka, port: 9092, targetPort: 9092 }
+    - { name: admin, port: 9644, targetPort: 9644 }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: opspilot-redpanda
+  labels: {{- include "infra.labels" . | nindent 4 }}
+spec:
+  serviceName: opspilot-redpanda
+  replicas: 1
+  selector:
+    matchLabels: { app: opspilot-redpanda }
+  template:
+    metadata:
+      labels: { app: opspilot-redpanda }
+    spec:
+      containers:
+        - name: redpanda
+          image: {{ .Values.redpanda.image }}
+          args:
+            - redpanda
+            - start
+            - --mode=dev-container
+            - --smp=1
+            - --memory={{ .Values.redpanda.memory }}
+            - --overprovisioned
+            - --kafka-addr=internal://0.0.0.0:9092
+            - --advertise-kafka-addr=internal://opspilot-redpanda:9092
+          ports:
+            - { containerPort: 9092, name: kafka }
+            - { containerPort: 9644, name: admin }
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "rpk cluster health | grep -E 'Healthy:.+true'"]
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits: { memory: 1536Mi }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/redpanda/data }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.redpanda.storage }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: opspilot-redpanda-topics
+  labels: {{- include "infra.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: rpk
+          image: {{ .Values.redpanda.image }}
+          command: ["sh", "-c"]
+          args:
+            - >-
+              rpk topic create {{ join " " .Values.redpanda.topics }}
+              -p {{ .Values.redpanda.partitions }} -X brokers=opspilot-redpanda:9092
+              || rpk topic list -X brokers=opspilot-redpanda:9092

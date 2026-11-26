@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opspilot-env
+  labels: {{- include "opspilot.labels" . | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.env }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: opspilot-models
+  labels: {{- include "opspilot.labels" . | nindent 4 }}
+spec:
+  # Single-node k3d: RWO local-path volumes can be shared by pods on the same node.
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: {{ .Values.models.storage }}

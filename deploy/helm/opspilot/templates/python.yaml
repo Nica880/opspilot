@@ -1,0 +1,61 @@
+{{- range $name, $c := .Values.python }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opspilot-{{ $name }}
+  labels:
+    {{- include "opspilot.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  replicas: {{ $c.replicas }}
+  selector:
+    matchLabels: { app: opspilot-{{ $name }} }
+  template:
+    metadata:
+      labels: { app: opspilot-{{ $name }} }
+      annotations:
+        checksum/env: {{ toYaml $.Values.env | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: {{ $name }}
+          image: {{ include "opspilot.pythonImage" $ }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: {{- toYaml $c.command | nindent 12 }}
+          envFrom:
+            - configMapRef: { name: opspilot-env }
+            - secretRef: { name: {{ $.Values.existingSecret }}, optional: true }
+          {{- if $c.port }}
+          ports:
+            - { containerPort: {{ $c.port }}, name: http }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources: {{- toYaml $c.resources | nindent 12 }}
+          volumeMounts:
+            - { name: models, mountPath: /models }
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: opspilot-models }
+{{- if $c.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opspilot-{{ $name }}
+  labels: {{- include "opspilot.labels" $ | nindent 4 }}
+spec:
+  type: NodePort
+  selector: { app: opspilot-{{ $name }} }
+  ports:
+    - { name: http, port: {{ $c.port }}, targetPort: http, nodePort: {{ $c.nodePort }} }
+{{- end }}
+{{- end }}

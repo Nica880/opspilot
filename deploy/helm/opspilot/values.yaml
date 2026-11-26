@@ -1,0 +1,79 @@
+# Same images as `make up`, imported into k3d by `make k8s-up` (ADR-011).
+image:
+  python:
+    repository: opspilot/py
+    tag: 0.1.0
+  web:
+    repository: opspilot/web
+    tag: 0.1.0
+  pullPolicy: IfNotPresent
+
+env:
+  MODE: small
+  LLM_PROVIDER: ollama
+  LLM_MODEL: qwen2.5:7b-instruct
+  PROMPT_VERSION: v1
+  # Ollama runs natively on the Mac; k3d exposes the host as host.k3d.internal.
+  OLLAMA_URL: http://host.k3d.internal:11434
+  DATABASE_URL: postgresql://opspilot:opspilot@opspilot-postgres:5432/opspilot
+  QDRANT_URL: http://opspilot-qdrant:6333
+  KAFKA_BOOTSTRAP: opspilot-redpanda:9092
+  TEMPORAL_ADDRESS: opspilot-temporal:7233
+  PHOENIX_OTLP_ENDPOINT: http://opspilot-phoenix:6006/v1/traces
+  HF_HOME: /models
+  FASTEMBED_CACHE_PATH: /models/fastembed
+
+# Optional Secret with GITHUB_TOKEN, SANDBOX_REPO, SANDBOX_GITHUB_TOKEN (never in git):
+#   kubectl -n opspilot create secret generic opspilot-secrets --from-env-file=.env
+existingSecret: opspilot-secrets
+
+models:
+  storage: 5Gi
+
+python:
+  api:
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    replicas: 1
+    port: 8000
+    nodePort: 30800
+    resources: { requests: { cpu: 100m, memory: 512Mi }, limits: { memory: 3Gi } }
+  worker:
+    command: ["python", "-m", "workflows.worker"]
+    replicas: 1
+    resources: { requests: { cpu: 200m, memory: 512Mi }, limits: { memory: 3Gi } }
+  indexer:
+    command: ["python", "-m", "workflows.consumers", "indexer"]
+    replicas: 1
+    resources: { requests: { cpu: 200m, memory: 512Mi }, limits: { memory: 3Gi } }
+  triage-trigger:
+    command: ["python", "-m", "workflows.consumers", "triage"]
+    replicas: 1
+    resources: { requests: { cpu: 50m, memory: 256Mi }, limits: { memory: 512Mi } }
+
+web:
+  replicas: 1
+  port: 3000
+  nodePort: 30300
+  resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 512Mi } }
+
+keda:
+  enabled: true
+  pollingInterval: 15
+  cooldownPeriod: 120
+  # Scale on Redpanda consumer-group lag; maxReplicas <= topic partitions (6).
+  scaledObjects:
+    indexer:
+      target: indexer
+      consumerGroup: opspilot-indexer
+      topic: issues.v1
+      lagThreshold: "20"
+      minReplicas: 1
+      maxReplicas: 3
+    worker:
+      # New issues waiting for the triage trigger mean triage work is coming: pre-scale workers.
+      target: worker
+      consumerGroup: opspilot-triage
+      topic: issues.v1
+      lagThreshold: "5"
+      minReplicas: 1
+      maxReplicas: 3

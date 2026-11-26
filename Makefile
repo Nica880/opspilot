@@ -105,6 +105,48 @@ check-images: ## Verify every pinned image exists for linux/arm64
 	python3 scripts/check_images.py $$(grep -hoE 'image: *[^ ]+' docker-compose.yml | awk '{print $$2}' | grep -v '^opspilot/' | sort -u) \
 	  $$(grep -hoE '^FROM [^ ]+' Dockerfile web/Dockerfile | awk '{print $$2}' | sort -u)
 
+# ---------------------------------------------------------------- kubernetes (k3d + Argo CD + KEDA)
+ARGOCD_VERSION := v3.6.3
+K8S_VERSION := 1.35.0
+CRD_SCHEMAS := https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
+K8S_IMAGES := rancher/k3s:v1.35.10-k3s1 quay.io/argoproj/argocd:$(ARGOCD_VERSION) \
+	ghcr.io/kedacore/keda:2.21.1 ghcr.io/kedacore/keda-metrics-apiserver:2.21.1 \
+	ghcr.io/kedacore/keda-admission-webhooks:2.21.1
+
+.PHONY: k8s-up
+k8s-up: build ## k3d cluster + Argo CD; Argo CD deploys KEDA, infra and the app from this repo
+	k3d cluster create --config deploy/k3d/cluster.yaml
+	k3d image import opspilot/py:0.1.0 opspilot/web:0.1.0 -c opspilot
+	kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+	kubectl apply -n argocd --server-side --force-conflicts \
+	  -f https://raw.githubusercontent.com/argoproj/argo-cd/$(ARGOCD_VERSION)/manifests/install.yaml
+	kubectl -n argocd rollout status deploy/argocd-repo-server --timeout=300s
+	kubectl create namespace opspilot --dry-run=client -o yaml | kubectl apply -f -
+	@if [ -f .env ]; then kubectl -n opspilot create secret generic opspilot-secrets \
+	  --from-env-file=.env --dry-run=client -o yaml | kubectl apply -f -; fi
+	kubectl apply -f deploy/argocd/root.yaml
+	kubectl -n argocd wait --for=jsonpath='{.status.health.status}'=Healthy application/opspilot --timeout=900s
+	@echo "UI http://localhost:3000 ? API http://localhost:8000 ? Phoenix http://localhost:6006 ? Temporal http://localhost:8233"
+	@echo "Argo CD: kubectl -n argocd port-forward svc/argocd-server 8443:443 (user admin, password:"
+	@echo "  kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)"
+
+.PHONY: k8s-down
+k8s-down: ## Delete the k3d cluster
+	k3d cluster delete opspilot
+
+.PHONY: k8s-lint
+k8s-lint: ## helm lint + kubeconform (strict, with CRD schemas for KEDA and Argo CD)
+	helm lint deploy/helm/opspilot deploy/helm/opspilot-infra --strict
+	rm -rf .k8s-render && mkdir -p .k8s-render
+	helm template opspilot deploy/helm/opspilot -n opspilot --output-dir .k8s-render > /dev/null
+	helm template opspilot-infra deploy/helm/opspilot-infra -n opspilot --output-dir .k8s-render > /dev/null
+	kubeconform -strict -summary -kubernetes-version $(K8S_VERSION) -schema-location default \
+	  -schema-location '$(CRD_SCHEMAS)' .k8s-render deploy/argocd
+
+.PHONY: check-k8s-images
+check-k8s-images: ## Verify the k8s-mode images exist for linux/arm64
+	python3 scripts/check_images.py $(K8S_IMAGES)
+
 # ---------------------------------------------------------------- quality
 .PHONY: lint
 lint: ## ruff + mypy + eslint + tsc

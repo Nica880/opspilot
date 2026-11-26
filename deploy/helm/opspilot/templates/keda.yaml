@@ -1,0 +1,25 @@
+{{- if .Values.keda.enabled }}
+{{- range $name, $s := .Values.keda.scaledObjects }}
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: opspilot-{{ $name }}
+  labels: {{- include "opspilot.labels" $ | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: opspilot-{{ $s.target }}
+  pollingInterval: {{ $.Values.keda.pollingInterval }}
+  cooldownPeriod: {{ $.Values.keda.cooldownPeriod }}
+  minReplicaCount: {{ $s.minReplicas }}
+  maxReplicaCount: {{ $s.maxReplicas }}
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: {{ $.Values.env.KAFKA_BOOTSTRAP }}
+        consumerGroup: {{ $s.consumerGroup }}
+        topic: {{ $s.topic }}
+        lagThreshold: {{ $s.lagThreshold | quote }}
+        offsetResetPolicy: earliest
+{{- end }}
+{{- end }}

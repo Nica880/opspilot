@@ -11,7 +11,7 @@ Each milestone is shippable, tested and one commit.
 | 5 | Evals | harness, LLM-as-judge, promptfoo in CI, red-team set, first report | done: first report is the red-team run with the fake LLM; model metrics need `make eval` |
 | 6 | Frontend | all pages in Next.js, SSE streaming, Playwright E2E with a mocked API | done |
 | 7 | MCP + A2A | MCP tools, A2A agent card, tool-safety tests | done |
-| 8 | Kubernetes | Helm chart, k3d, Argo CD app-of-apps, KEDA on consumer lag, helm lint + kubeconform | |
+| 8 | Kubernetes | Helm chart, k3d, Argo CD app-of-apps, KEDA on consumer lag, helm lint + kubeconform | done |
 | 9 | Polish | README, metrics table from real runs, screenshots, demo GIF | |
 
 ## Run modes

@@ -18,3 +18,4 @@ web/playwright-report/
 promptfoo-output/
 *.log
 .DS_Store
+.k8s-render/
