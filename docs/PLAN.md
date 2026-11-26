@@ -7,7 +7,7 @@ Each milestone is shippable, tested and one commit.
 | 1 | Foundation | layout, compose (postgres, qdrant, redpanda, temporal, phoenix), Makefile, CI, CLAUDE.md, ADR-001 | done |
 | 2 | Ingestion | GitHub client (rate limits, retries, ETags), backfill + incremental cursor, events to Redpanda, recorded fixtures | done |
 | 3 | Indexing + search | chunking, dense + sparse in Qdrant, reranker, search API, retrieval eval (dense vs hybrid vs rerank) | done |
-| 4 | Agent | LangGraph graph, structured outputs, guardrails, Temporal workflow with approval signal, fake LLM | |
+| 4 | Agent | LangGraph graph, structured outputs, guardrails, Temporal workflow with approval signal, fake LLM | done |
 | 5 | Evals | harness, LLM-as-judge, promptfoo in CI, red-team set, first report | |
 | 6 | Frontend | all pages in Next.js, SSE streaming, Playwright E2E with a mocked API | |
 | 7 | MCP + A2A | MCP tools, A2A agent card, tool-safety tests | |

@@ -63,6 +63,18 @@ search: ## make search Q="dependency with yield RuntimeError"
 eval-retrieval: ## Duplicate recall@k / MRR: dense vs hybrid vs hybrid+rerank -> docs/eval/
 	$(RUN) python -m evals.retrieval
 
+# ---------------------------------------------------------------- agent
+.PHONY: demo
+demo: ## Small-mode demo: ingest ~2k issues, index, triage the 5 newest open issues
+	$(MAKE) ingest
+	$(MAKE) index
+	$(RUN) python -m workflows.demo --n $${N:-5}
+	@echo "UI: http://localhost:3000  ·  Temporal: http://localhost:8233  ·  Phoenix: http://localhost:6006"
+
+.PHONY: triage
+triage: ## make triage N=10: start triage on the N newest open issues
+	$(RUN) python -m workflows.demo --n $${N:-5}
+
 .PHONY: check-images
 check-images: ## Verify every pinned image exists for linux/arm64
 	python3 scripts/check_images.py $$(grep -hoE 'image: *[^ ]+' docker-compose.yml | awk '{print $$2}' | grep -v '^opspilot/' | sort -u) \

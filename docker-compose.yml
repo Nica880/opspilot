@@ -138,6 +138,15 @@ services:
     depends_on:
       api: { condition: service_started }
 
+  triage-trigger:
+    image: opspilot/py:0.1.0
+    pull_policy: never
+    command: ["python", "-m", "workflows.consumers", "triage"]
+    environment: *py-env
+    depends_on:
+      api: { condition: service_started }
+      temporal: { condition: service_started }
+
   web:
     image: opspilot/web:0.1.0
     build:

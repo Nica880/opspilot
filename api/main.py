@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.routes_runs import router as runs_router
 from api.routes_search import router as search_router
 from common.config import get_settings
 
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
         return {"status": "ok", "mode": settings.mode, "llm_provider": settings.llm_provider}
 
     app.include_router(search_router)
+    app.include_router(runs_router)
     return app
 
 

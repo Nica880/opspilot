@@ -15,7 +15,7 @@ from indexing.corpus import CorpusReader
 from indexing.factory import build_search
 from indexing.indexer import Indexer
 from ingestion.events import DOCS_TOPIC, ISSUES_TOPIC
-from ingestion.models import DocEvent, IssueEvent
+from ingestion.models import DocEvent, IssueEvent, IssueRecord
 
 log = logging.getLogger(__name__)
 
@@ -96,12 +96,56 @@ async def run_indexer() -> None:
     )
 
 
+def should_triage(event: Event) -> bool:
+    """Only brand-new issues seen by incremental sync; never backfill, PRs or edits."""
+    return (
+        isinstance(event, IssueEvent)
+        and event.type == "issue.opened"
+        and not event.backfill
+        and event.kind == "issue"
+    )
+
+
+def make_triage_handler(
+    reader: CorpusReader, start: Callable[[str, IssueRecord], Awaitable[str]]
+) -> Handler:
+    async def handle(events: list[Event]) -> None:
+        for event in dedupe(events):
+            if not should_triage(event) or not isinstance(event, IssueEvent):
+                continue
+            found = await reader.issue(event.repo, event.number)
+            if found is not None:
+                run_id = await start(event.repo, found[0])
+                log.info("triage started for %s (run %s)", event.key, run_id)
+
+    return handle
+
+
+async def run_triage_trigger() -> None:
+    from workflows.client import start_triage
+    from workflows.worker import connect
+
+    settings = get_settings()
+    client = await connect(settings.temporal_address, settings.temporal_namespace)
+    reader = CorpusReader(await get_pool())
+
+    async def start(repo: str, issue: IssueRecord) -> str:
+        return await start_triage(client, settings.temporal_task_queue, repo, issue)
+
+    await consume(
+        [ISSUES_TOPIC],
+        "opspilot-triage",
+        make_triage_handler(reader, start),
+        settings.kafka_bootstrap,
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     parser = argparse.ArgumentParser(prog="workflows.consumers")
-    parser.add_argument("consumer", choices=["indexer"])
-    parser.parse_args(argv)
-    asyncio.run(run_indexer())
+    parser.add_argument("consumer", choices=["indexer", "triage"])
+    args = parser.parse_args(argv)
+    asyncio.run(run_indexer() if args.consumer == "indexer" else run_triage_trigger())
 
 
 if __name__ == "__main__":
