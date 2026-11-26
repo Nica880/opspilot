@@ -51,6 +51,18 @@ ingest-incremental: ## Fetch everything updated since the stored cursors
 record-fixtures: ## Re-record GitHub fixtures (unauthenticated)
 	$(PY) python scripts/record_fixtures.py
 
+.PHONY: index
+index: ## Rebuild the Qdrant index from Postgres (the indexer consumer keeps it fresh afterwards)
+	$(RUN) python -m indexing.cli reindex
+
+.PHONY: search
+search: ## make search Q="dependency with yield RuntimeError"
+	$(RUN) python -m indexing.cli search "$(Q)"
+
+.PHONY: eval-retrieval
+eval-retrieval: ## Duplicate recall@k / MRR: dense vs hybrid vs hybrid+rerank -> docs/eval/
+	$(RUN) python -m evals.retrieval
+
 .PHONY: check-images
 check-images: ## Verify every pinned image exists for linux/arm64
 	python3 scripts/check_images.py $$(grep -hoE 'image: *[^ ]+' docker-compose.yml | awk '{print $$2}' | grep -v '^opspilot/' | sort -u) \
