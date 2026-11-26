@@ -22,6 +22,7 @@ from langgraph.types import interrupt
 from opentelemetry import trace
 
 from agent.actions import SandboxActions
+from agent.classify import classify_issue
 from agent.guardrails import redact, sanitize, strip_untrusted_links, wrap_untrusted
 from agent.llm import Message, StructuredLLM, StructuredOutputError
 from agent.prompts import load_prompt
@@ -142,18 +143,16 @@ def build_graph(
 
     @timed("classify", "LLM")
     async def classify_node(state: TriageState) -> dict[str, Any]:
-        system = load_prompt(
-            state["prompt_version"],
-            "classify",
-            repo=state["repo"],
-            areas=", ".join(state["areas"]),
-            labels=", ".join(state["allowed_labels"]),
-        )
         try:
-            result = await deps.llm.generate(
-                "classify",
-                [Message.of("system", system), Message.of("user", _issue_block(state))],
-                Classification,
+            # Clamped to the allowed vocabularies; the verifier still reports what was dropped.
+            data = await classify_issue(
+                deps.llm,
+                repo=state["repo"],
+                title=state["title"],
+                sanitized_body=state.get("sanitized", ""),
+                prompt_version=state["prompt_version"],
+                areas=state["areas"],
+                allowed_labels=state["allowed_labels"],
             )
         except StructuredOutputError as exc:
             return {
@@ -162,15 +161,9 @@ def build_graph(
                 "errors": [str(exc)],
                 "_summary": "failed",
             }
-        # Clamp to the allowed vocabularies; the verifier still reports what was dropped.
-        data = result.model_dump()
-        data["proposed_labels_raw"] = list(result.labels)
-        data["labels"] = [label for label in result.labels if label in state["allowed_labels"]]
-        if result.area not in state["areas"]:
-            data["area"] = "other"
         return {
             "classification": data,
-            "_summary": f"{result.type}/{data['area']}/{result.severity}",
+            "_summary": f"{data['type']}/{data['area']}/{data['severity']}",
         }
 
     @timed("retrieve", "RETRIEVER")

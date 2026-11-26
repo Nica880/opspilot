@@ -75,6 +75,11 @@ demo: ## Small-mode demo: ingest ~2k issues, index, triage the 5 newest open iss
 triage: ## make triage N=10: start triage on the N newest open issues
 	$(RUN) python -m workflows.demo --n $${N:-5}
 
+# ---------------------------------------------------------------- protocols
+.PHONY: mcp-stdio
+mcp-stdio: ## MCP server over stdio (for Claude Desktop); HTTP is at http://localhost:8000/mcp/
+	$(PY) python -m api.mcp_server
+
 # ---------------------------------------------------------------- evals
 .PHONY: eval
 eval: ## Retrieval eval + triage matrix (2 models x 2 prompts x 3 retrieval) on 50 held-out issues each
