@@ -1,0 +1,144 @@
+# Small-mode dev stack. Image tags are pinned and verified for linux/arm64 with
+# `make check-images` (see ADR-002). The Python image is built ONCE by the `api`
+# service; `worker` reuses the tag and never builds it (no parallel builds of one tag).
+name: opspilot
+
+x-py-env: &py-env
+  DATABASE_URL: postgresql://opspilot:opspilot@postgres:5432/opspilot
+  QDRANT_URL: http://qdrant:6333
+  KAFKA_BOOTSTRAP: redpanda:9092
+  TEMPORAL_ADDRESS: temporal:7233
+  OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+  PHOENIX_OTLP_ENDPOINT: http://phoenix:6006/v1/traces
+  LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+  LLM_MODEL: ${LLM_MODEL:-qwen2.5:7b-instruct}
+  MODE: ${MODE:-small}
+  HF_HOME: /models
+  FASTEMBED_CACHE_PATH: /models/fastembed
+
+services:
+  postgres:
+    image: postgres:16.16-alpine
+    environment:
+      POSTGRES_USER: opspilot
+      POSTGRES_PASSWORD: opspilot
+      POSTGRES_DB: opspilot
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opspilot -d opspilot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  qdrant:
+    image: qdrant/qdrant:v1.20.2
+    ports: ["6333:6333", "6334:6334"]
+    volumes: [qdrant:/qdrant/storage]
+
+  redpanda:
+    image: redpandadata/redpanda:v26.2.7
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=1G
+      - --overprovisioned
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+    ports: ["19092:19092", "9644:9644"]
+    volumes: [redpanda:/var/lib/redpanda/data]
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redpanda-console:
+    image: redpandadata/console:v3.15.0
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+    ports: ["8088:8080"]
+    depends_on:
+      redpanda: { condition: service_healthy }
+
+  temporal:
+    image: temporalio/auto-setup:1.29.7
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_USER: opspilot
+      POSTGRES_PWD: opspilot
+      POSTGRES_SEEDS: postgres
+    ports: ["7233:7233"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  temporal-ui:
+    image: temporalio/ui:2.58.1
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports: ["8233:8080"]
+    depends_on: [temporal]
+
+  phoenix:
+    image: arizephoenix/phoenix:version-22.1.0
+    environment:
+      PHOENIX_SQL_DATABASE_URL: postgresql://opspilot:opspilot@postgres:5432/phoenix
+    ports: ["6006:6006", "4317:4317"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    image: opspilot/py:0.1.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: *py-env
+    env_file:
+      - path: .env
+        required: false
+    ports: ["8000:8000"]
+    volumes:
+      - models:/models
+      - ./docs/eval:/app/docs/eval
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+      qdrant: { condition: service_started }
+
+  worker:
+    image: opspilot/py:0.1.0
+    pull_policy: never
+    command: ["python", "-m", "workflows.worker"]
+    environment: *py-env
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - models:/models
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    depends_on:
+      api: { condition: service_started }
+      temporal: { condition: service_started }
+
+  web:
+    image: opspilot/web:0.1.0
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports: ["3000:3000"]
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  qdrant:
+  redpanda:
+  models:

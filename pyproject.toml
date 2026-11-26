@@ -1,0 +1,72 @@
+[project]
+name = "opspilot"
+version = "0.1.0"
+description = "Agentic triage and resolution copilot for open-source issue trackers"
+requires-python = ">=3.12,<3.13"
+authors = [{ name = "Nicanor" }]
+dependencies = [
+    "aiokafka>=0.15.0",
+    "fastapi>=0.165.0",
+    "fastembed>=0.9.1",
+    "httpx>=0.29.0",
+    "langgraph>=1.2.24",
+    "langgraph-checkpoint-postgres>=3.2.1",
+    "mcp>=2.3.0",
+    "openinference-instrumentation-langchain>=0.1.90",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.2",
+    "opentelemetry-sdk>=1.45.2",
+    "psycopg[binary,pool]>=3.3.9",
+    "pydantic>=2.14.4",
+    "pydantic-settings>=2.16.3",
+    "qdrant-client>=1.20.0",
+    "sse-starlette>=3.7.1",
+    "temporalio>=1.37.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.5.0",
+    "respx>=0.23.1",
+    "ruff>=0.17.6",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["web", "deploy"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "RUF", "SIM", "PTH", "N"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "N802"]
+"evals/**" = ["S311"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+exclude = ["^web/", "^deploy/", "^\\.venv/"]
+
+[[tool.mypy.overrides]]
+module = ["aiokafka.*", "fastembed.*", "openinference.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+  "integration: needs the docker compose stack (make up)",
+  "eval: evaluation suites on fixtures",
+]
+addopts = "-m 'not integration'"
