@@ -70,4 +70,3 @@ markers = [
   "eval: evaluation suites on fixtures",
 ]
 addopts = "-m 'not integration'"
-filterwarnings = ["ignore:Payload indexes have no effect in the local Qdrant:UserWarning"]

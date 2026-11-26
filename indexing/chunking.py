@@ -114,6 +114,8 @@ def issue_chunks(repo: str, issue: IssueRecord, comments: list[CommentRecord]) -
                         "comment_id": comment.id,
                         "maintainer": comment.author_association in MAINTAINER_ROLES,
                         "url": comment.html_url,
+                        # Time-split safety: a comment is only "known" from when it was posted.
+                        "created_ts": _ts(max(comment.created_at, issue.created_at)),
                     },
                 )
             )

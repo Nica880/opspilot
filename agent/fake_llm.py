@@ -61,8 +61,28 @@ class FakeProvider:
             "dedupe": self._dedupe,
             "draft": self._draft,
             "critic": self._critic,
+            "judge": self._judge,
         }[task]
         return json.dumps(handler(system, user, blocks))
+
+    def _judge(self, _: str, __: str, blocks: list[tuple[str, str]]) -> dict[str, Any]:
+        sources = {kind: text for kind, text in blocks if kind.startswith("S")}
+        reply = next((text for kind, text in blocks if kind == "draft"), "")
+        cited = re.findall(r"\[(S\d+)\]", reply)
+        unsupported = [
+            s
+            for s in _sentences(reply)
+            if re.search(r"\[S\d+\]", s) is None and len(tokens(s)) > 6 and cited
+        ]
+        wrong = [c for c in cited if c not in sources or _overlap(reply, sources[c]) < 0.2]
+        groundedness = 5 if not wrong and not unsupported else (3 if not wrong else 1)
+        return {
+            "unsupported_statements": unsupported[:10],
+            "citation_check": [f"{c}: {'ok' if c not in wrong else 'wrong'}" for c in cited][:10],
+            "groundedness": groundedness,
+            "citations_correct": not wrong,
+            "refusal_appropriate": True,
+        }
 
     @staticmethod
     def _issue(blocks: list[tuple[str, str]]) -> str:

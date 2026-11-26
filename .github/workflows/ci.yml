@@ -30,6 +30,31 @@ jobs:
       - run: uv run mypy .
       - run: uv run pytest
 
+  evals:
+    name: Evals on fixtures (red-team 100%, promptfoo)
+    runs-on: ubuntu-latest
+    env:
+      LLM_PROVIDER: fake
+      PROMPTFOO_DISABLE_TELEMETRY: "1"
+      PROMPTFOO_DISABLE_UPDATE: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.10"
+          enable-cache: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - run: uv sync --frozen
+      - name: Red-team set must pass 100%
+        run: uv run pytest -q tests/unit/test_evals.py -k red_team
+      - name: promptfoo suite
+        working-directory: evals/promptfoo
+        run: |
+          PROMPTFOO_PYTHON="$GITHUB_WORKSPACE/.venv/bin/python" \
+            npx --yes promptfoo@0.126.0 eval -c promptfooconfig.yaml --no-cache --no-write --no-progress-bar
+
   web:
     name: Web (eslint, prettier, tsc, vitest, build)
     runs-on: ubuntu-latest

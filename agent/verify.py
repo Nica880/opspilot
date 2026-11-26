@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from agent.guardrails import ACTION_CLAIM
 from agent.schemas import Classification, Draft
 from indexing.embeddings import tokens
 
@@ -61,6 +62,8 @@ def verify_draft(draft: Draft, evidence: dict[str, str]) -> list[str]:
     for cited in set(_INLINE_CITE.findall(draft.reply_markdown)) - claimed:
         if cited in evidence:
             problems.append(f"reply cites {cited} without a supporting claim")
+    if ACTION_CLAIM.search(draft.reply_markdown):
+        problems.append("reply claims an action was taken; the agent cannot act")
     return problems
 
 

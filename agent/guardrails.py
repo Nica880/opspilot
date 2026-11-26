@@ -142,6 +142,31 @@ def redact(text: str) -> tuple[str, list[str]]:
     return text, found
 
 
+# ------------------------------------------------------------------------------ links
+
+_URL = re.compile(r"https?://[^\s)\]>\"'`]+")
+ACTION_CLAIM = re.compile(
+    r"\bI(?:'ve| have)? (?:closed|deleted|merged|labell?ed|banned|locked|approved|commented on)\b",
+    re.I,
+)
+
+
+def strip_untrusted_links(text: str, allowed_urls: set[str]) -> tuple[str, int]:
+    """Keep only links that point at evidence; anything else could be attacker-supplied."""
+    allowed = {u.split("#")[0].rstrip("/") for u in allowed_urls}
+    removed = 0
+
+    def repl(match: re.Match[str]) -> str:
+        nonlocal removed
+        url = match.group(0).rstrip(".,;:")
+        if url.split("#")[0].rstrip("/") in allowed:
+            return match.group(0)
+        removed += 1
+        return "[link removed]"
+
+    return _URL.sub(repl, text), removed
+
+
 # ------------------------------------------------------------------------------ actions
 
 ALLOWED_ACTIONS = frozenset({"create_mirror_issue", "comment", "add_labels"})

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -86,7 +87,10 @@ class QdrantIndex:
             ("number", models.PayloadSchemaType.INTEGER),
             ("created_ts", models.PayloadSchemaType.FLOAT),
         ):
-            await self.client.create_payload_index(self.collection, field, schema)
+            with warnings.catch_warnings():
+                # Local (in-memory) Qdrant ignores payload indexes and warns; the server uses them.
+                warnings.simplefilter("ignore", UserWarning)
+                await self.client.create_payload_index(self.collection, field, schema)
 
     async def replace_document(
         self,

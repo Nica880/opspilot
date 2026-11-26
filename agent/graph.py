@@ -22,7 +22,7 @@ from langgraph.types import interrupt
 from opentelemetry import trace
 
 from agent.actions import SandboxActions
-from agent.guardrails import redact, sanitize, wrap_untrusted
+from agent.guardrails import redact, sanitize, strip_untrusted_links, wrap_untrusted
 from agent.llm import Message, StructuredLLM, StructuredOutputError
 from agent.prompts import load_prompt
 from agent.schemas import Classification, CriticVerdict, Draft, DuplicateVerdict
@@ -60,6 +60,7 @@ class TriageState(TypedDict, total=False):
     body: str
     url: str
     created_at: str
+    knowledge_cutoff: str
     prompt_version: str
     retrieval_variant: str
     allowed_labels: list[str]
@@ -177,6 +178,8 @@ def build_graph(
         query = f"{state['title']}\n\n{state.get('sanitized', '')[:1500]}"
         variant: Variant = state.get("retrieval_variant", "hybrid_rerank")  # type: ignore[assignment]
         created = datetime.fromisoformat(state["created_at"])
+        if state.get("knowledge_cutoff"):
+            created = min(created, datetime.fromisoformat(state["knowledge_cutoff"]))
         own_key = doc_key_issue(state["repo"], state["number"])
         issues = await deps.search.search(
             query,
@@ -302,7 +305,11 @@ def build_graph(
             }
         data = draft.model_dump()
         data["reply_markdown"], redacted = redact(draft.reply_markdown)
+        data["reply_markdown"], links_removed = strip_untrusted_links(
+            data["reply_markdown"], {str(e["url"]) for e in evidence}
+        )
         data["redactions"] = redacted
+        data["links_removed"] = links_removed
         mode = "answer" if draft.can_answer else "refusal"
         return {
             "draft": data,

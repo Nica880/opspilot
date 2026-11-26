@@ -24,6 +24,7 @@ class IssueInput:
     body: str
     url: str
     created_at: str
+    knowledge_cutoff: str | None = None
 
 
 @dataclass(frozen=True)
@@ -87,6 +88,8 @@ class TriageService:
             "allowed_labels": labels_for(issue.repo, self.labels_by_repo.get(issue.repo)),
             "areas": areas_for(issue.repo),
         }
+        if issue.knowledge_cutoff:
+            state["knowledge_cutoff"] = issue.knowledge_cutoff
         started = time.perf_counter()
         try:
             snapshot = await self.graph.aget_state(_config(run_id))
