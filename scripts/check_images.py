@@ -1,20 +1,24 @@
-"""Check that pinned image tags exist for linux/arm64 (registry equivalent of `docker manifest inspect`)."""
+"""Check pinned image tags exist for linux/arm64 (like `docker manifest inspect`, no daemon)."""
+
 from __future__ import annotations
 
 import json
 import sys
 import urllib.request
+from typing import Any
 
-ACCEPT = ",".join([
-    "application/vnd.oci.image.index.v1+json",
-    "application/vnd.docker.distribution.manifest.list.v2+json",
-    "application/vnd.oci.image.manifest.v1+json",
-    "application/vnd.docker.distribution.manifest.v2+json",
-])
+ACCEPT = ",".join(
+    [
+        "application/vnd.oci.image.index.v1+json",
+        "application/vnd.docker.distribution.manifest.list.v2+json",
+        "application/vnd.oci.image.manifest.v1+json",
+        "application/vnd.docker.distribution.manifest.v2+json",
+    ]
+)
 
 
-def _get(url: str, headers: dict[str, str] | None = None) -> tuple[dict, dict]:
-    req = urllib.request.Request(url, headers=headers or {})
+def _get(url: str, headers: dict[str, str] | None = None) -> tuple[Any, dict[str, str]]:
+    req = urllib.request.Request(url, headers=headers or {})  # noqa: S310 - fixed https hosts
     with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 - fixed registry hosts
         return json.loads(resp.read()), dict(resp.headers)
 
@@ -51,7 +55,7 @@ def main(images: list[str]) -> int:
     for image in images:
         try:
             plats = platforms(image)
-        except Exception as exc:  # noqa: BLE001 - report every image
+        except Exception as exc:
             print(f"MISSING  {image}: {exc}")
             failed += 1
             continue

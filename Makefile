@@ -21,6 +21,7 @@ build: env ## Build images (python image once, then web; never in parallel)
 .PHONY: up
 up: build ## Start the dev stack (docker compose) and apply migrations
 	$(COMPOSE) up -d --wait postgres redpanda qdrant
+	$(COMPOSE) exec -T redpanda rpk topic create issues.v1 docs.v1 -p 6 || true
 	$(COMPOSE) up -d
 	$(RUN) python -m common.migrate
 
@@ -35,6 +36,20 @@ clean: ## Stop the stack and delete volumes
 .PHONY: logs
 logs:
 	$(COMPOSE) logs -f --tail=100
+
+# ---------------------------------------------------------------- data
+.PHONY: ingest
+ingest: ## Backfill issues, PRs, comments, discussions and docs (MODE=small|full)
+	$(RUN) python -m ingestion.cli backfill
+	$(RUN) python -m ingestion.cli docs
+
+.PHONY: ingest-incremental
+ingest-incremental: ## Fetch everything updated since the stored cursors
+	$(RUN) python -m ingestion.cli incremental
+
+.PHONY: record-fixtures
+record-fixtures: ## Re-record GitHub fixtures (unauthenticated)
+	$(PY) python scripts/record_fixtures.py
 
 .PHONY: check-images
 check-images: ## Verify every pinned image exists for linux/arm64

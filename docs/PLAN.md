@@ -5,7 +5,7 @@ Each milestone is shippable, tested and one commit.
 | # | Milestone | Scope | Status |
 |---|---|---|---|
 | 1 | Foundation | layout, compose (postgres, qdrant, redpanda, temporal, phoenix), Makefile, CI, CLAUDE.md, ADR-001 | done |
-| 2 | Ingestion | GitHub client (rate limits, retries, ETags), backfill + incremental cursor, events to Redpanda, recorded fixtures | |
+| 2 | Ingestion | GitHub client (rate limits, retries, ETags), backfill + incremental cursor, events to Redpanda, recorded fixtures | done |
 | 3 | Indexing + search | chunking, dense + sparse in Qdrant, reranker, search API, retrieval eval (dense vs hybrid vs rerank) | |
 | 4 | Agent | LangGraph graph, structured outputs, guardrails, Temporal workflow with approval signal, fake LLM | |
 | 5 | Evals | harness, LLM-as-judge, promptfoo in CI, red-team set, first report | |
