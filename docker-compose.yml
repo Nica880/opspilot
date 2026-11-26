@@ -116,6 +116,7 @@ services:
     image: opspilot/py:0.1.0
     pull_policy: never
     command: ["python", "-m", "workflows.worker"]
+    restart: unless-stopped
     environment: *py-env
     env_file:
       - path: .env
@@ -131,6 +132,7 @@ services:
     image: opspilot/py:0.1.0
     pull_policy: never
     command: ["python", "-m", "workflows.consumers", "indexer"]
+    restart: unless-stopped
     environment: *py-env
     volumes:
       - models:/models
@@ -142,6 +144,7 @@ services:
     image: opspilot/py:0.1.0
     pull_policy: never
     command: ["python", "-m", "workflows.consumers", "triage"]
+    restart: unless-stopped
     environment: *py-env
     depends_on:
       api: { condition: service_started }

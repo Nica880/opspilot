@@ -12,7 +12,7 @@ Each milestone is shippable, tested and one commit.
 | 6 | Frontend | all pages in Next.js, SSE streaming, Playwright E2E with a mocked API | done |
 | 7 | MCP + A2A | MCP tools, A2A agent card, tool-safety tests | done |
 | 8 | Kubernetes | Helm chart, k3d, Argo CD app-of-apps, KEDA on consumer lag, helm lint + kubeconform | done |
-| 9 | Polish | README, metrics table from real runs, screenshots, demo GIF | |
+| 9 | Polish | README, metrics table from real runs, screenshots, demo GIF | done (model metrics pending `make eval` on the Mac) |
 
 ## Run modes
 

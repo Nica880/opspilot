@@ -142,22 +142,59 @@ export const THREAD: IssueThread = {
   run: RUN,
 };
 
+const SEARCH_DOCS: Record<string, Omit<SearchResponse["hits"][number], "score">> = {
+  "42": {
+    doc_key: "fastapi/fastapi#42",
+    kind: "issue",
+    repo: "fastapi/fastapi",
+    title: "RuntimeError at shutdown with yield dependencies",
+    url: "https://github.com/fastapi/fastapi/issues/42",
+    snippet: "",
+    number: 42,
+  },
+  doc: {
+    doc_key: "fastapi/fastapi:docs/en/docs/tutorial/dependencies/dependencies-with-yield.md",
+    kind: "doc",
+    repo: "fastapi/fastapi",
+    title: "Dependencies with yield",
+    url: "https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/",
+    snippet: "",
+    number: null,
+  },
+  "77": {
+    doc_key: "fastapi/fastapi#77",
+    kind: "issue",
+    repo: "fastapi/fastapi",
+    title: "Lifespan shutdown hangs when a dependency raises",
+    url: "https://github.com/fastapi/fastapi/issues/77",
+    snippet: "",
+    number: 77,
+  },
+  "13": {
+    doc_key: "fastapi/fastapi#13",
+    kind: "discussion",
+    repo: "fastapi/fastapi",
+    title: "Background tasks run after dependency cleanup?",
+    url: "https://github.com/fastapi/fastapi/discussions/13",
+    snippet: "",
+    number: 13,
+  },
+};
+
+export const SEARCH_ORDER: Record<string, string[]> = {
+  dense: ["77", "13", "42", "doc"],
+  hybrid: ["42", "77", "doc", "13"],
+  hybrid_rerank: ["42", "doc", "77", "13"],
+};
+
 export function searchResponse(variant: string): SearchResponse {
   return {
     query: "q",
     variant: variant as SearchResponse["variant"],
-    hits: [
-      {
-        doc_key: `fastapi/fastapi#${variant.length}`,
-        score: 0.5,
-        kind: "issue",
-        repo: "fastapi/fastapi",
-        title: `${variant} top hit`,
-        url: "https://github.com/fastapi/fastapi/issues/1",
-        snippet: "",
-        number: variant.length,
-      },
-    ],
+    hits: (SEARCH_ORDER[variant] ?? []).map((key, i) => ({
+      ...SEARCH_DOCS[key],
+      score: Number((0.9 - i * 0.12).toFixed(3)),
+    })),
   };
 }
 

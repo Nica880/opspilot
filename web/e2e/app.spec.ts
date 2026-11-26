@@ -10,6 +10,7 @@ test("inbox lists issues with live triage status", async ({ page }) => {
   await expect(rows.first()).toContainText(RUN.title);
   await expect(rows.first().getByTestId("status")).toHaveText("awaiting approval");
   await expect(rows.nth(1)).toContainText("not triaged");
+  await expect(page.getByTestId("live")).toHaveText("● live");
 });
 
 test("issue view shows the thread, evidence, verified draft and duplicates", async ({ page }) => {
@@ -69,9 +70,14 @@ test("search playground compares the three retrieval variants", async ({ page })
   await page.goto("/search");
   await page.getByLabel("Query").fill("yield RuntimeError");
   await page.getByRole("button", { name: "Search" }).click();
-  for (const variant of ["dense", "hybrid", "hybrid_rerank"]) {
-    await expect(page.getByTestId(`results-${variant}`)).toContainText(`${variant} top hit`);
-  }
+  const firstTitle = (variant: string) =>
+    page.getByTestId(`results-${variant}`).getByRole("listitem").first();
+  await expect(firstTitle("dense")).toContainText("Lifespan shutdown hangs");
+  await expect(firstTitle("hybrid")).toContainText("RuntimeError at shutdown");
+  await expect(firstTitle("hybrid_rerank")).toContainText("RuntimeError at shutdown");
+  await expect(
+    page.getByTestId("results-hybrid_rerank").getByRole("listitem").nth(1),
+  ).toContainText("Dependencies with yield");
 });
 
 test("eval dashboard shows reports and empty states", async ({ page }) => {

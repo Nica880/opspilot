@@ -12,7 +12,10 @@ DEFAULT_REPOS = ("fastapi/fastapi", "pydantic/pydantic", "astral-sh/uv")
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    # Compose passes `GITHUB_TOKEN=` from .env.example as "": treat empty values as unset.
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore", env_ignore_empty=True
+    )
 
     database_url: str = "postgresql://opspilot:opspilot@localhost:5432/opspilot"
     qdrant_url: str = "http://localhost:6333"

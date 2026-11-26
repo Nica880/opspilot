@@ -95,6 +95,15 @@ eval-full: ## Default config on 1,000 held-out issues with 100 judged drafts (ho
 redteam: ## 50 crafted attacks against the real model; must pass 100%
 	$(RUN) python -m evals.redteam.run
 
+.PHONY: readme-metrics
+readme-metrics: ## Rewrite the README results section from the latest docs/eval reports
+	$(PY) python scripts/readme_metrics.py
+
+.PHONY: screenshots
+screenshots: ## Regenerate docs/img (Playwright walkthrough on fixtures) and the demo GIF
+	cd web && npm run build && SCREENSHOTS=1 npx playwright test e2e/screenshots.spec.ts
+	$(PY) python scripts/make_demo_gif.py
+
 .PHONY: promptfoo
 promptfoo: ## promptfoo regression suite against Ollama (CI runs it with the fake LLM)
 	cd evals/promptfoo && PROMPTFOO_PYTHON=$(CURDIR)/.venv/bin/python LLM_PROVIDER=$${LLM_PROVIDER:-ollama} \

@@ -14,6 +14,13 @@ def test_repos_env_is_comma_separated(monkeypatch: pytest.MonkeyPatch) -> None:
     assert Settings(_env_file=None).repos == ("a/b", "c/d")
 
 
+def test_empty_env_values_count_as_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "")
+    monkeypatch.setenv("SANDBOX_REPO", "")
+    settings = Settings(_env_file=None)
+    assert settings.github_token is None and settings.sandbox_repo is None
+
+
 @pytest.mark.parametrize("bad", ["noslash", "a/b/c", "/x", "x/"])
 def test_sandbox_repo_must_be_owner_slash_name(bad: str) -> None:
     with pytest.raises(ValidationError):

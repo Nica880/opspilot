@@ -60,9 +60,11 @@ export function SearchPlayground() {
                     <a href={hit.url} target="_blank" rel="noreferrer" className="hover:underline">
                       {hit.title}
                     </a>
-                    <div className="flex gap-2 text-xs text-muted-foreground">
+                    <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                       <Badge variant="outline">{hit.kind}</Badge>
-                      <span>{hit.doc_key}</span>
+                      <span className="truncate" title={hit.doc_key}>
+                        {hit.doc_key}
+                      </span>
                       <span>{hit.score.toFixed(3)}</span>
                     </div>
                   </li>

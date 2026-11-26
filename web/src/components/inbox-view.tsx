@@ -28,7 +28,7 @@ export function InboxView() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Inbox</h1>
         <span className="text-xs text-muted-foreground" data-testid="live">
-          {connected ? "● live" : "○ reconnecting"}
+          {connected ? "● live" : "○ disconnected"}
         </span>
       </div>
       {inbox.isError && <p className="text-destructive">Could not load the inbox.</p>}

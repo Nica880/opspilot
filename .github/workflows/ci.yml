@@ -110,6 +110,19 @@ jobs:
       - uses: actions/checkout@v7
       - run: docker compose config --quiet
 
+  images:
+    name: Build Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Build one after the other, never the same tag from two services in parallel (ADR-002).
+      - run: docker build -t opspilot/py:ci .
+      - run: docker build -t opspilot/web:ci web
+      - name: Python image imports every service entrypoint
+        run: |
+          docker run --rm -e LLM_PROVIDER=fake opspilot/py:ci python -c \
+            "import api.main, workflows.worker, workflows.consumers, ingestion.cli, indexing.cli, evals.harness, evals.redteam.run; print('ok')"
+
   k8s:
     name: Helm lint + kubeconform
     runs-on: ubuntu-latest

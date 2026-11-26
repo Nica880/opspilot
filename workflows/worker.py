@@ -17,14 +17,21 @@ log = logging.getLogger(__name__)
 
 
 async def connect(address: str, namespace: str, attempts: int = 30) -> Client:
-    """Temporal's auto-setup container takes a while on first boot; retry instead of crashing."""
+    """Temporal's auto-setup image serves the frontend before it registers the namespace, and
+    `Worker.run()` fails fast on a missing namespace: wait for both instead of crashing."""
+    from temporalio.api.workflowservice.v1 import DescribeNamespaceRequest
+
     for attempt in range(1, attempts + 1):
         try:
-            return await Client.connect(address, namespace=namespace)
-        except RuntimeError as exc:
+            client = await Client.connect(address, namespace=namespace)
+            await client.workflow_service.describe_namespace(
+                DescribeNamespaceRequest(namespace=namespace)
+            )
+            return client
+        except Exception as exc:  # RPCError or connection error while Temporal boots
             log.warning("temporal not ready (%s/%s): %s", attempt, attempts, exc)
             await asyncio.sleep(5)
-    raise RuntimeError(f"could not connect to Temporal at {address}")
+    raise RuntimeError(f"Temporal at {address} has no namespace {namespace!r}")
 
 
 async def main() -> None:

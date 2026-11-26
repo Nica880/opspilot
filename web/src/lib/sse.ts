@@ -14,7 +14,8 @@ export function useRunStream(): { connected: boolean; last: RunSummary | null } 
   useEffect(() => {
     const source = new EventSource(`${API_URL}/api/stream/runs`);
     source.onopen = () => setConnected(true);
-    source.onerror = () => setConnected(false);
+    // EventSource reconnects by itself (readyState CONNECTING); only CLOSED means we lost it.
+    source.onerror = () => setConnected(source.readyState !== EventSource.CLOSED);
     source.addEventListener("run", (event) => {
       const run = JSON.parse((event as MessageEvent<string>).data) as RunSummary;
       setLast(run);
